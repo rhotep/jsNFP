@@ -1,0 +1,416 @@
+html, body {
+	font-family: sans-serif;
+	margin:0px;
+	padding: 0;
+}
+
+html{	
+	height:100%;
+}
+
+body{
+	background: #fff url('images/blue_foresight.png');
+	background-size:cover;
+	padding:2em 3em;
+}
+
+
+table{
+	padding:0;
+	margin:0
+	border-collapse: collapse;
+	border-spacing:0;
+}
+
+small{
+	font-size:0.8em;
+}
+
+.bubble{
+	position:relative;
+	display:block;
+	margin:0;
+	padding:0;
+
+}
+
+.bubble,
+.bubble > .full, 
+.bubble > .compact{
+	position:relative;
+}
+
+.bubble.updating{
+}
+
+.cycle.compact .date{	
+	display:inline-block;
+	width:10ex;
+	text-align:right;		
+	margin-right:2%;
+	vertical-align:middle;
+	line-height:1em;
+}
+
+.cycle.compact .date .start{
+	font-size:1em;
+}
+
+.cycle.compact .date .last{
+	font-size:0.75em;
+}
+
+.cycle.compact .date .last:before{
+	content: '\2013';
+	margin-right:1ex;
+}
+
+.cycle.compact .days{
+	display:inline-block;
+	width:80%;
+	text-align:left;
+}
+
+.cycle.compact .day{
+	position:relative;
+	display:inline-block;
+	height:1.6em;
+	width:1.2%;
+	border-radius:0;
+	margin: 0 2px;
+	vertical-align:middle;
+	background:#fff;
+	border:1px solid #aaa;
+	overflow:hidden;
+}
+
+.cycle.compact .day .temperature{
+	position:absolute;
+	bottom:0;
+	width:100%;
+	background:#4572A7;
+}
+
+.cycle.compact .day .blood{
+	position:absolute;
+	bottom:0;
+	width:100%;
+	background:#AA4643;
+}
+
+.cycle.full .main {
+	height:100%;
+	background:rgba(255,255,255,1);
+}
+
+
+.cycle.full .chart {
+	position:absolute;
+	left:0;
+	right:0;
+	top:0;
+	bottom:0;
+}
+
+.cycle.full .chart .highcharts-tooltip td{
+	font-size:0.8em;
+	white-space: nowrap;
+	padding-right:0.25em;
+	min-width:2em;
+}
+
+.cycle.full .chart .highcharts-tooltip .levels{
+	float:left;
+}
+
+.cycle.full .chart .highcharts-tooltip .levels div {
+	display:inline-block;
+    width: 3px;
+    height: 1em;
+	margin-right:2px;
+	white-space:nowrap;
+}
+
+.cycle.full .chart .highcharts-tooltip .value {
+	display:inline-block;
+}
+
+
+
+.button,
+.content,
+.option,
+.item.compact, 
+.item .top
+{			/*basic box layout*/
+	color:#666;
+	font-size:1.1em;
+	text-align:center;
+	background:#fff;
+}
+
+.button,
+.content, 
+.item,
+.item .top,
+.item .selector
+{			/*basic box layout*/
+	border-radius: 0.5em;
+}
+
+.button,
+.content,
+.item.compact, 
+.item .top,
+.item .option:hover,
+.item .selector
+{
+	box-shadow:0 1px 6px rgba(0,0,0,0.6);
+}
+
+.button, 
+.content,
+.item.compact,
+.item .top
+{			/*more box layout*/
+	padding:1em;
+}
+
+.button,
+.content,
+.item.compact {
+	margin:0.25em;
+}
+
+.button,
+.option,
+.item.compact
+{
+	opacity: 0.5;
+	cursor:pointer;
+	transition: 		ease 0.25s;
+	-moz-transition: 	ease 0.25s;
+	-webkit-transition: ease 0.25s;
+	-o-transition:		ease 0.25s;
+}
+
+.button,
+.option,
+.content{ 
+	display:block;
+}
+
+.button:hover, 
+.option:hover,
+.item.compact:hover,
+.item.compact.focus:hover{
+	background: rgba(255, 255, 255,  1) !important;
+	opacity : 1;
+}
+
+.button,
+.item .checkbox{
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+.ledge {
+	position:relative;
+	margin: 0;
+	text-align:left;
+}
+
+.ledge .tile.stretch {
+	display: block;
+	position: absolute;
+	height: 100%;
+	top:0;
+}
+
+.ledge .tile.maxto{
+	display:inline-block;
+	position:relative;
+	vertical-align:top;
+}
+
+
+
+.content
+{
+	opacity:1;
+}
+
+
+.item.compact.focus
+{
+	background: rgba(255, 255, 255,  0.85);
+	color:#666;
+	opacity:1;
+}
+
+.item.compact,
+.item.range{
+	text-align:left;
+	position:relative;
+}
+
+.item.compact label,
+.item.range label{
+	cursor:pointer;
+	display:inline-block;
+	position:absolute;
+	right:1em;
+	top:1em;
+	font-size:1em;
+	line-height:1em;
+}
+
+.item.compact input,
+.item.compact .input,
+.item.range input,
+.item.range .input{
+	cursor:pointer;
+	max-width:100%;
+	display:block;
+	padding:0;
+	font-size:2em;
+	line-height:1em;
+	height:1em;
+	border:none;
+	background: transparent;
+}
+
+.spanned{	
+	position:absolute;
+	left:0.25em;
+	top:0.25em;
+	right:0.25em;
+	bottom:0.25em;
+	background: transparent;
+	padding:0;
+}
+
+
+.options {
+	position:absolute;
+	right: 100%;	
+	top:0;
+	width:30em;
+	background:rgba(0,0,0,0.8);
+	border-radius: 0.75em;
+	margin:0 0.5em;
+	box-shadow: 0 0 5px #000;
+}
+
+.item .options:after {
+	content:'';
+	position:absolute;
+	left:100%;
+	top:50%;
+	margin-top:-0.5em;
+	width: 0; 
+	height: 0; 
+	border-top: 0.5em solid transparent;
+	border-bottom: 0.5em solid transparent; 	
+	border-left:0.5em solid rgba(0,0,0,0.8);
+}
+
+
+
+.item .top{
+	cursor:pointer;
+	left:0;
+	right:0;
+	top:0;
+	height:2em;
+}
+
+.item .top .indicator {
+	display:block;
+	text-align:left;
+}
+
+.item .top .indicator:before {
+	content:'';
+	width: 0; 
+	height: 0; 
+	border-top: 0.4em solid transparent;
+	border-bottom: 0.4em solid transparent; 	
+	border-right:0.4em solid #666; 
+	display:inline-block;
+	margin-right:0.2em;
+}
+
+
+.item .top .indicator.cancel:before {
+	content:'';
+	border:none;	
+}
+
+.item .selector{
+	position:absolute;
+	left:0;
+	right:0;
+	top: 4.4em;
+	bottom:0;
+	margin-top:1ex;
+}
+
+.item .selector > div
+{
+	position:absolute;
+	left:0;
+	right:0;
+	top:1em;
+	bottom:1em;
+	overflow-y: auto;
+	overflow-x: hidden;	
+}
+
+.item .selector:before,
+.item .selector:after
+{
+	content:'';
+	position:absolute;
+	background: rgba(255,255,255,0.5);
+	height: 1em;
+	left:0;
+	right:0;
+}
+
+.item .selector:before
+{
+	top:0;
+	border-radius: 0.5em 0.5em 0 0;
+}
+
+.item .selector:after
+{
+	bottom:0;
+	border-radius: 0 0 0.5em 0.5em;
+}
+
+.item .option{
+	text-align:left;
+	padding:0 2em;
+	line-height:2em;
+}
+
+.item .option.current:before{
+	content:'';
+	width: 0; 
+	height: 0; 
+	border-top: 0.4em solid transparent;
+	border-bottom: 0.4em solid transparent; 	
+	border-left:0.4em solid #666; 
+	display:block;
+	position:absolute;
+	margin-top:0.6em;
+	margin-left:-0.75em;
+}
+
+

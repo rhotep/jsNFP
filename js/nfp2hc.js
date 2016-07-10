@@ -1,0 +1,753 @@
+function two(a){			
+	return(a<10 ? '0'+a: a);
+}
+
+$.extend(Highcharts.Renderer.prototype.symbols, {
+    "double-circle": function(x, y, r) {
+		function circ(cx,cy,r,reverse){
+			var x = cx-r/2
+			var y = cy-r/2
+			var cpw = 0.166 * r;
+			if(reverse==null){
+				return [
+					'M', x + r / 2, y,
+					'C', x - cpw, y, 			x - cpw, y + r,		x + r / 2, y + r,
+					'C', x + r + cpw, y + r,	x + r  + cpw, y, 	x + r / 2, y,
+					'Z'
+				]
+			}else{
+				return [
+					'M', x + r / 2, y,
+					'C', x + r + cpw, y, 	x + r + cpw, y + r, 	x + r / 2, y + r,
+					'C', x - cpw, y + r, 	x - cpw, y, 			x + r / 2, y,
+					'Z'
+				]
+			}
+		}
+
+		var cx = Math.round(x+r/2)+0.5
+		var cy = Math.round(y+r/2)+0.5
+		return(
+			circ(cx, cy ,r*2)
+			.concat(circ(cx, cy, r*1.9-3, true))
+			.concat(circ(cx, cy, r))
+
+		)
+    }
+});
+
+$.extend(Highcharts.Chart.prototype,{
+	selected_set	: null,
+	selectDataSet 	: function(e){		
+		var chart = this,
+			category = null
+		if(isNaN(e)){		
+			//this.category can equal 0, may be interpreted as false, thus cannot use "||":
+			category = this.category != undefined ? this.category : Math.floor(e.xAxis[0].value); 
+		}else{
+			category = Math.floor(e)
+		}
+		chart.selected_set = category		
+		chart.options.chart.events.onsetselect(category)
+
+		var top_axis 	= chart.xAxis[3],
+			bottom_axis = chart.xAxis[1],
+			jutX		= chart.options.editScreen.jutX,
+			jutY		= chart.options.editScreen.jutY,
+			tick_width	= bottom_axis.transA,
+			x1			= Math.round(
+							bottom_axis.left
+							+ bottom_axis.ticks[category].pos*tick_width
+							- jutX
+						  )+0.5,
+			x2			= Math.round(
+							bottom_axis.left
+							+ (bottom_axis.ticks[category].pos+1)*tick_width
+							+ jutX
+						  )+0.5,
+			y1		 	= Math.round(top_axis.top + top_axis.offset - top_axis.options.tickLength-jutY)+0.5,
+			y2		 	= Math.round(bottom_axis.top + bottom_axis.offset + bottom_axis.height + bottom_axis.options.tickLength+jutY)+0.5,
+			width		= x2-x1,
+			height		= y2-y1
+
+
+		if(chart.editScreen == undefined){
+			this.editScreen = chart.renderer.rect(
+				x1, y1, width, height, 
+				chart.options.editScreen.borderRadius,
+				chart.options.editScreen.borderWidth
+			)
+			.attr({
+				fill: 			chart.options.editScreen.backgroundColor,
+				stroke:			chart.options.editScreen.borderColor,			
+				zIndex: 		chart.options.editScreen.zIndex,
+			})
+			.add();
+		}
+		chart.editScreen.animate({'x': x1, 'y1':y1, 'width': width, 'height': height}, 20)
+	},
+
+	update:	function(cycle, redraw){
+		var chart	= this,
+			data	= nfp2hc_data(cycle)
+
+		redraw = redraw == undefined ? true : redraw
+
+		chart.yAxis[0].removePlotLine("helper_line")
+		chart.yAxis[0].addPlotLine(data.helper_line)
+
+		$.each(data.slime_run, function(index,band){
+			chart.xAxis[0].removePlotBand(band.id)
+			chart.xAxis[0].addPlotBand(band)
+		})
+
+		chart.series[0].setData(data.series.temp,false)
+		chart.series[1].setData(data.series.hidden_temp,false)
+		chart.series[2].setData(data.series.blood,false)
+		chart.series[3].setData(data.series.slime_runs,false)
+
+		chart.xAxis[1].categories = data.series.slime
+		chart.xAxis[2].categories = data.series.dates
+		chart.xAxis[3].categories = data.series.dates
+		
+		if(redraw) chart.redraw()		
+	}
+
+})
+
+
+
+function nfp2hc_data(cycle) {
+	var length 					= cycle.days.length || 0,
+		results_symptothermal 	= cycle.symptothermal(),
+		data					= {},
+		series 					= {}
+		series.temp 			= []
+		series.hidden_temp		= []
+		series.blood 			= []
+		series.slime 			= []
+		series.labels			= []
+		series.dates 			= []
+		series.months 			= []
+		series.slime_runs		= []
+
+	
+	// helper line for symptothermal method
+	data.helper_line = {
+		color: "rgba(0,0,0,0.5)",
+		width: 2,
+		value: results_symptothermal != null ? results_symptothermal.helper_line : 0,
+		dashStyle: "Dash",
+		zIndex: 1,
+		id: "helper_line"
+	}		
+	
+	// slime maxima:
+	data.slime_run = []
+	if(results_symptothermal && results_symptothermal.slime){	
+		var last_run = results_symptothermal.slime.runs[results_symptothermal.slime.runs.length-1] //only use last run
+		for(var i = 0; i < last_run.length; i++){ 
+			var slime = last_run[i]
+			
+			data.slime_run.push({
+				from:	slime.x-0.5,
+				to:		slime.x+0.5,
+				zIndex: 0,
+				color: 	{
+							linearGradient: [0,0,0,"100%"],
+							stops: [
+								[0.3, 'rgba(226, 208, 0, 0)'],
+								[0.7, 'rgba(226, 208, 0, '+(i==0? 0.5: 0.25)+')'],
+							]
+						},
+				id:		"slime-"+i,
+				
+			})
+		}
+	}
+
+	//slime runs:
+	series.slime_runs = []
+	if(	results_symptothermal
+		&& results_symptothermal.slime.complete
+	){	
+
+		$.each(results_symptothermal.slime.runs, function(c, run){
+			$.each(run, function(i, value){
+				series.slime_runs[value.x] = {
+					dataLabels:	{
+									enabled:	true,
+									formatter:	function(){return(i==0 ? 'H': i)},
+									x:0,
+									y:6,
+									style:		{
+													fontWeight: 'bold',
+												},
+								},
+					marker:		{
+									enabled:	false,
+								},
+					states:		{
+									hover:	{
+												enabled:	false,
+											}
+								},					
+					x:			value.x,
+					y:			0.5,
+				}
+			})
+		})
+	}
+
+	for(var i = 0; i < length; i++){
+		if(series.slime_runs[i] == undefined) series.slime_runs[i] = null
+	}
+	
+
+
+	//Clearance:
+	data.clearance = {}
+	data.clearance.start = {
+		from:-0.5,
+		to: 4+0.5,
+		zIndex: 0,
+		color: {
+			linearGradient: [0,0,0,"100%"],
+			stops: [
+				[0, 'rgba(159, 200, 105, 1)'],
+				[0.7, 'rgba(255, 255, 255, 0)'],								
+				
+			]
+		},
+		id: "clearance_start"
+	}
+
+	data.clearance.end = {
+		from: 1+length-5-0.5,
+		to: 1+length-0.5,
+		zIndex: 0,
+		color: {
+			linearGradient: [0,0,0,"100%"],
+			stops: [
+				[0, 'rgba(159, 200, 105, 1)'],
+				[0.7,'rgba(255, 255, 255, 0)'],									
+			]
+		},
+		id: "clearance_end"
+	}
+		
+	
+	for(var i=0; i<length; i++){ //prepare data
+		// get item for series of temperature values or series of hidden temperture values
+		var point = {
+			name: 'Tag '+(i+1),
+			x:i,
+			y:cycle.days[i].temperature || null,
+		}
+
+		//mark higher readings from symptothermal method
+		if(results_symptothermal != null){
+			for(var j = 0; j < results_symptothermal.higher_readings.length; j++){
+				if(results_symptothermal.higher_readings[j].x == i){
+					point.marker = {
+						symbol: 		'double-circle',
+						lineColor:		'rgba(0,0,0,0)',
+						states:{	
+							hover:{
+								enabled:	true,
+								radius:		5,
+								lineWidth: 	2,
+								lineColor:	'rgba(0,0,0,0)',
+							},
+							select:{
+								enabled:false,
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if(cycle.days[i].hidden){
+			series.hidden_temp.push(point)
+			series.temp.push(null)
+		}else{
+			series.hidden_temp.push(null)
+			series.temp.push(point)
+		}
+
+		// get item for series of blood levels
+		var point = {
+			name: 'Tag '+(i+1),
+			x:i,
+			y:cycle.days[i].blood || null,
+		}
+
+		series.blood.push(point);
+
+		// get labels for both axes
+		series.labels.push(i+1);	
+		series.dates.push(cycle.days[i].date)
+
+		// get item for series of slime levels
+		var point = {
+			name: 'Tag '+(i+1),
+			x:i,
+			y:cycle.days[i].slime || null,
+		}
+
+		// get item for series of slime levels		
+		series.slime.push(point);
+
+	}
+
+	data.series = series		
+	return(data)
+}
+
+
+	
+function nfp2hc_config(cycle, renderTo, onload_callback, edit_callback){
+	var data = nfp2hc_data(cycle)
+
+	return({
+		chart: {
+			renderTo:	 			renderTo,
+			//alignTicks: 			false,
+			backgroundColor:		"rgba(255,255,255,1)",
+			plotBackgroundColor:	"rgba(255,255,255,1)",
+			plotBorderWidth:		 1,
+			reflow:					true,
+			ignoreHiddenSeries:		false,
+			spacingTop:				30,
+			marginBottom:			150,
+			spacingBottom:			0,
+			animation:				true,
+			events: {
+				//click:				function(event){this.selectDataSet(event)},
+				//load: 				onload_callback,
+				redraw:				function(a,b){this.callback(this)},
+				onsetselect:		edit_callback,
+			},
+		},
+		title: {
+			text: ''
+		},
+		subtitle: {
+			text: ''
+		},			
+		plotOptions:{
+			column:{
+				borderWidth: 	1,
+				pointPadding: 	0.05,
+				grouping:		false,
+				shadow: 		true
+			
+			},
+			series:{
+				allowPointSelect: false,
+				enableMouseTracking: true,
+			},
+		},
+		xAxis: [
+			{
+				categories:		data.series.labels,
+				min:			0,
+				max:			data.series.labels.length-1,
+				linewidth:		0,
+				tickInterval: 	1,
+				tickLength:		15,
+				startOnTick:	true,
+				endOnTick:		true,
+				gridLineWidth:	1,
+				gridLineColor: 	"rgba(0,0,0,0.05)",
+				lineColor:		"rgba(0,0,0,1)",
+				tickColor: 		"rgba(0,0,0,0.2)",
+				showLastLabel: 	true,			
+				showFirstLabel:	true,
+				plotBands:		[data.clearance.start, data.clearance.end].concat(data.slime_run),
+				id:				"labels",
+			},
+			{
+				categories:		data.series.slime,
+				min:			0,
+				max:			data.series.slime.length-1,			
+				offset:			15,
+				lineWidth:		0,
+				tickInterval: 	1,
+				tickColor: 		"rgba(0,0,0,0.2)",
+				lineColor:		"rgba(0,0,0,0.2)",
+				linkedTo:		0,
+				tickLength:		20,
+				startOnTick:	true,
+				endOnTick:		true,
+				gridLineWidth:	0,
+				showLastLabel: 	true,	
+				labels:{
+					formatter: function(){
+						if(!this.value.y) return(null)
+
+						var values 	= ['t','Ø','f', 'S','S+'],
+							base	= Math.ceil(this.value.y),
+							res		= values[base]
+
+						if(base != this.value.y) res = '('+res+')'
+						
+						return(res);	
+					}
+				},
+				id:				"slime",
+			},
+			{
+				categories:		data.series.dates,
+				opposite:		true,
+				min:			0,
+				max:			data.series.dates.length-1,
+				linkedTo:		0,
+				lineWidth:		1,
+				tickLength:		15,
+				tickColor: 		"rgba(0,0,0,0.2)",
+				lineColor:		"rgba(0,0,0,1)",
+				startOnTick:	true,
+				endOnTick:		true,
+				gridLineWidth:	0,
+				showLastLabel: 	true,
+				labels:{
+					formatter: function(){
+						return(two(this.value.getDate()));	
+					}
+				},
+				id:				"dates-numbers",
+			},
+			{
+				categories:		data.series.dates,
+				opposite:		true,
+				min:			0,
+				max:			data.series.dates.length-1,
+				offset:			15,
+				linkedTo:		0,
+				lineWidth:		0,
+				tickColor: 		"rgba(0,0,0,0.2)",
+				lineColor:		"rgba(0,0,0,0.2)",
+				tickLength:		20,
+				startOnTick:	true,
+				endOnTick:		true,
+				gridLineWidth:	0,
+				showLastLabel: 	true,
+				labels:{
+					formatter: function(){
+						var shortWeekdays = ['So','Mo','Di','Mi','Do','Fr','Sa']
+						return(shortWeekdays[this.value.getDay()]);	
+					}
+				},
+				id:				"dates-days",
+			},
+		],	
+		yAxis: [
+			{	
+				title:			{
+									text:	"Temperatur(°C)",		
+								},
+				min:			35,
+				max: 			38.2,
+				tickInterval: 	0.2,
+				gridLineWidth: 	1,
+				gridLineColor: 	"rgba(0,0,0,0.2)",
+				type: 			"linear",
+				plotLines:		[data.helper_line],
+				showLastLabel: 	false,			
+				showFirstLabel:	false,
+				labels: {
+					formatter: function(){
+						var str = String(Math.round(this.value*100));						
+						return(str.slice(0,-2)+'.'+str.slice(-2,-1));
+					}
+				},			
+			},
+			{
+				title:			{
+									text:	"Blutung",
+								},
+				min: 			0,
+				max: 			15,
+				endOnTick: 		true,
+				gridLineWidth: 	0,
+				tickInterval: 	1,
+				type: 			"linear",
+				showLastLabel: 	false,			
+				showFirstLabel:	false,
+				labels: {
+					formatter: function(){
+						return(this.value<= 5? Math.round(this.value): '');				
+					}
+				},
+				opposite:true,			
+			},
+		],
+		tooltip: {
+			enabled:	 	true,
+			useHTML:		true,
+			shared: 		true,
+			//positioner : function(){},
+			style: {
+				fontSize: '12pt'
+			},
+
+			formatter: 		function() {
+				// get keys for each point
+				var keys = []
+				$.each(this.points, function(i, point) { 	
+					if($.inArray(point.key, keys)) keys.push(point.key)
+				})
+			
+				var s =  '<small>'+ keys.join(', ') +'</small>'
+					s += '<table>'
+			
+				// get formatters for each series
+		        $.each(this.points, function(i, p) {
+					var point 	= 	p.point,
+						series 	= 	p.series,
+						prefix	= 	series.options.tooltip && series.options.tooltip.valuePrefix ||'',
+						suffix	= 	series.options.tooltip && series.options.tooltip.valueSuffix ||'',
+					 	value	=	prefix+String(point.y)+suffix
+		            s += series.options.tooltip && series.options.tooltip.formatter ? series.options.tooltip.formatter(point) :
+						'<tr>'+
+							'<td style="color: '+series.color+'">'+series.name+': </td>'+
+							'<td style="text-align: right"><b>'+value+'</b></td>'+
+						'</tr>'
+		        })		          
+					s +='</table>' 
+		        return s;
+		    },			
+		},
+		editScreen: {// erklaeren
+			backgroundColor: 	'rgba(0,0,0,0.05)', //'rgba(69,114,167,0.2)',//'rgba(159, 200, 105,  0.5)',
+			borderWidth:		1,
+			borderColor:		'rgba(0,0,0,0.3)',//'#4572A7',
+			borderRadius:		0,
+			jutX:				0,
+			jutY:				0,
+			zIndex: 			2,
+		},		
+		series: [
+			{
+				data:		data.series.temp,
+				name: 		'Temperatur',
+				yAxis: 		0,
+				xAxis:		0,
+				tooltip:	{
+					pointFormat: 	'<tr><td style="color: {series.color}">{series.name}: </td>' + '<td style="text-align: right"><b>{point.y}</b></td></tr>',
+					valueSuffix: 	'°C',
+				},
+			},
+			{
+				data:		data.series.hidden_temp,
+				name: 		'Temperatur (ausgeklammert)',
+				color: 		"#999",
+				type:		'scatter',
+				yAxis: 		0,				
+				xAxis:		1,
+				tooltip:	{
+					pointFormat: 	'<tr><td style="color: {series.color}">{series.name}: </td>' + '<td style="text-align: right"><b>{point.y}</b></td></tr>',
+					valueSuffix: 	'°C',
+				},
+
+			},
+			{
+				data:		data.series.blood,
+				name:		'Blutung',
+				type: 		'column',
+				yAxis: 		1,
+				xAxis:		1,
+				color: 		"#c68280", //"rgba(170,70,67,1)",//0.65
+				borderColor:"#AA4643",
+				borderWidth: 1,
+				tooltip:	{						
+					formatter:	function(point){						
+						var series	= point.series,
+							y		= point.y,
+							value	= '<div class="levels">'
+
+						while(y){
+							y--
+							value +='<div style="background-color:'+series.color+'; height:1em; width: 3px;"></div>'
+						}
+						value += '</div><div class="value">'+point.y+'</div>'
+					
+						return(
+						'<tr>'+
+							'<td style="color: '+series.color+'">'+series.name+': </td>'+
+							'<td style="text-align: right">'+value+'</td>'+
+						'</tr>'
+						)
+					}
+				},
+			},
+			{
+				data:		data.series.slime_runs,
+				type:		'scatter',
+				xAxis:		1,
+				yAxis:		1,
+			},
+			/*
+			{
+				data:		data.series.slime,
+				name:		'Zervixschleim',
+				type: 		'column',
+				yAxis: 		1,
+				color: 		"#f6ed88",//"rgba(190,170,40,0.65)",
+				borderColor:"#e2d000",//"rgba(170,150,67,1)",
+				borderWidth:1,
+				tooltip:	{						
+					formatter:	function(point){						
+						var series	= point.series,
+							y		= point.y,
+							value	= '<div class="levels">'
+
+						while(y){
+							y--
+							value +='<div style="background-color:'+series.color+'; height:1em; width: 3px;"></div>'
+						}
+						value += '</div><div class="value">'+point.y+'</div>'
+					
+						return(
+						'<tr>'+
+							'<td style="color: '+series.color+'">'+series.name+': </td>'+
+							'<td style="text-align: right">'+value+'</td>'+
+						'</tr>'
+						)
+					}
+				},
+			},
+			*/
+		]
+	})
+}
+
+
+function additional_rendering(chart){	//extend chart?
+	$(chart.options.chart.renderTo).mousedown(function(){
+		var x = chart.tracker.mouseDownX - chart.plotLeft
+		if(x >= 0 && x <= chart.plotSizeX){
+			var category 	= chart.xAxis[0].tickPositions[Math.floor(x/chart.xAxis[0].transA)]
+			chart.selectDataSet(category) 
+		}
+	})
+
+
+	// add a label for each month spanning every day of the month
+	var axis 		= chart.xAxis[3],	 
+		dates		= axis.categories,
+		tick_pos	= axis.tickPositions,
+		ticks		= axis.ticks,
+		tick		= ticks[tick_pos[0]],
+		month 		= dates[tick_pos[0]].getMonth(),
+		start		= 0,
+		end 		= start
+
+
+	function addMonthLabel(start, end, month, axis){
+		var chart 		= axis.chart,
+		 	tick_width 	= axis.transA,
+			offset_left	= axis.left,
+			offset_top 	= Math.round(axis.top + axis.offset - axis.options.tickLength)+0.5,
+			start_x		= Math.round(offset_left+start*tick_width)+0.5,
+			start_y		= offset_top,
+			length		= Math.round((end-start)*tick_width),
+			grid_color	= axis.options.lineColor,
+			label_color	= axis.options.labels.style.color,
+			group 		= chart.renderer.g('month_labels').add(axis.axisGroup),
+			path		= start != 0 ?
+							[
+								'M', start_x, start_y,  
+								'h', length,
+								'm', 0, -5,
+								'v', 5,
+							]
+							:
+							[
+								'M', start_x, start_y,  
+								'h', length,
+								'm', 0, -5,
+								'v', 5,
+								'M', start_x, start_y-5,
+								'v', axis.options.tickLength - axis.offset+5
+							]
+
+		chart.renderer.path(path)
+		.attr({
+			id:				'marker-month-'+month,
+			'stroke-width': 1,
+			stroke: 		grid_color,
+		})
+		.add(group);
+		axis.axisGroup.renderer.text(chart.options.lang.months[month], start_x+length/2, offset_top-8)
+		.attr({
+			id:				'label-month-'+month,
+			'text-anchor':	'middle',
+			fill:			label_color,					
+		})
+		.css({
+			'font-size':	'1em',
+		})
+		.add(group)				
+	}
+
+
+	$('.highcharts-month_labels').remove()			// remove old labels
+
+	for(var i=1; i<tick_pos.length; i++){
+		end = i
+		if(month != dates[tick_pos[i]].getMonth()){
+			addMonthLabel(start, end, month, axis)	// add label for the month between the ticks				
+			start 	= i
+			month 	= dates[tick_pos[i]].getMonth()
+
+		}
+	}			
+	addMonthLabel(start, end+1, month, axis)		// add last months' label			
+
+
+	$('.highcharts-lower_box').remove()				// remove old box
+	// box for lower axis:
+
+	var 	axis 		= chart.xAxis[1],
+			offset_left	= axis.left,
+			offset_top 	= Math.round(axis.top + axis.height)+0.5,
+			start_x		= Math.round(offset_left)+0.5,
+			start_y		= offset_top,
+			length		= axis.len,
+			grid_color	= axis.options.lineColor,
+			group		= chart.renderer.g('lower_box').add(axis.axisGroup)
+
+
+	chart.renderer.path([
+		'M', start_x, start_y,
+		'v', axis.options.tickLength + axis.offset,
+		'h', length
+	])
+	.attr({
+		'stroke-width': 1,
+		stroke: 		grid_color,
+	})
+	.add(group);			
+
+	chart.selectDataSet(chart.selected_set||0)
+}
+
+
+function nfp2hc(cycle, renderTo, onload_callback, edit_callback){
+	Highcharts.setOptions({
+			lang: {
+				shortMonths: 	['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+				months: 		['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
+				weekdays: 		['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'],
+				shortWeekdays: 	['So','Mo','Di','Mi','Do','Fr','Sa'],
+			},
+	
+	});
+	var chart = new Highcharts.Chart(nfp2hc_config(cycle,  renderTo, onload_callback, edit_callback), additional_rendering) 
+	
+
+	return(chart);	
+}
